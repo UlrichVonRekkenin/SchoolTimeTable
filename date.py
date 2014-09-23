@@ -1,8 +1,12 @@
 from datetime import date
+import datetime
+import os
 
 ## pip install py-dateutil
 
+DMY = '%d.%m.%Y'
 YMD = '%Y.%m.%d'
+
 DAYS = {1: 'Mon',
         2: 'Tue',
         3: 'Wed',
@@ -67,13 +71,13 @@ class School():
         from collections import OrderedDict
         od = OrderedDict(sorted(self.d.items()))
 
-        return 'Class: {};\t{}\nTotal hours: {}\nLess hours: {}\nExcludes:\n\t{}\n\n{}'.format(
+        return 'Class: {};\t{}\nTotal hours: {}\nLost hours: {}\nExcludes:\n\t{}\n\n{}'.format(
                 self.name, 
                 str.join(', ', [DAYS[weekday] for weekday in self.workDays.keys()]),
                 len(self.d.keys()),
                 self.lessCounter,
                 str.join('\n\t', (str.format('{} -> {}', *x) for x in self.excludes)) ,
-                str.join('\n', (str.format('{}\t{}', v, k) for k, v in od.items()))
+                str.join('\n', (str.format('{}\t{}', v, datetime.datetime.strptime(k, YMD).strftime(DMY)) for k, v in od.items()))
                 )
 
 
@@ -87,7 +91,6 @@ if __name__ == '__main__':
             init['classes']['class_name1'] is a dict with struct as:
                 {isoweekday1: numberOfLesson1, isoweekday_n: numberOfLesson_n}
     '''
-    import os
 
     init = {
             'year': (date(2014, 9, 1), date(2015, 5, 31)),           
