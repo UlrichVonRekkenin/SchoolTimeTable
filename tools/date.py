@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from os import path, mkdir
-from datetime import date
-from datetime import timedelta
+from datetime import date, timedelta
 import calendar
 
 init = {
@@ -40,8 +39,13 @@ def GetSchoolTimeTable(init):
         d = dict()
         lessCounter = 0
 
-        dt = date(*init['year'][0])
-        while dt != date(*init['year'][1]):
+        if isinstance(init['year'], tuple):
+            dt, finish = date(*init['year'][0]), date(*init['year'][1])
+
+        elif isinstance(init['year'], datetime.date):
+            dt, finish = init[0], init[1]        
+        
+        while dt != finish:
 
             if dt.isoweekday() in init['classes'][class_name].keys():
 
@@ -69,11 +73,13 @@ def GetSchoolTimeTable(init):
                     lessCounter,
                     str.join('\n\t', ('{} -> {}'.format(*x) for x in init['excludes'])),
                     str.join('\n', (
-                        '{}\t{}'.format(v, datetime.datetime.strptime(k, '%Y.%m.%d').strftime('%d.%m.%Y')) for k, v in sorted(d.items())
+                        '{}\t{}'.format(
+                                v,
+                                datetime.datetime.strptime(k, '%Y.%m.%d').strftime('%d.%m.%Y')
+                            ) for k, v in sorted(d.items())
                         ))
                 )
             )
 
 if __name__ == '__main__':
     GetSchoolTimeTable(init)
-
