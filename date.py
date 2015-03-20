@@ -6,17 +6,17 @@ from datetime import timedelta
 import calendar
 
 init = {
-        'year': ((2014, 9, 1), (2015, 5, 31)),           
+        'year': ((2014, 9, 1), (2015, 5, 31)),
 
         'excludes': [
-                    ((2014, 11, 3 ), (2014, 11, 9 )),
-                    ((2014, 12, 29), (2015, 1 , 11)),
-                    ((2015, 2 , 23), (2015, 2 , 23)),
-                    ((2015, 3 , 9 ), (2015, 3 , 9 )),
-                    ((2015, 3 , 23), (2015, 3 , 29)),
-                    ((2015, 5 , 1 ), (2015, 5 , 4 )),
-                    ((2015, 5 , 11), (2015, 5 , 11)),
-                    ((2015, 5 , 25), (2015, 5 , 31))
+                    ((2014, 11, 3), (2014, 11, 9)),
+                    ((2014, 12, 29), (2015, 1, 11)),
+                    ((2015, 2, 23), (2015, 2, 23)),
+                    ((2015, 3, 9), (2015, 3, 9)),
+                    ((2015, 3, 23), (2015, 3, 29)),
+                    ((2015, 5, 1), (2015, 5, 4)),
+                    ((2015, 5, 11), (2015, 5, 11)),
+                    ((2015, 5, 25), (2015, 5, 31))
                     ],
 
         'classes': {
@@ -52,9 +52,9 @@ def GetSchoolTimeTable(init):
                     d[dt.strftime('%Y.%m.%d')] = '{}-{}'.format(
                             calendar.day_abbr[dt.isoweekday()],
                             init['classes'][class_name][dt.isoweekday()]
-                        ) 
+                        )
 
-            dt += timedelta(days = 1)
+            dt += timedelta(days=1)
 
         if not path.exists(out):
             mkdir(out)
@@ -76,4 +76,3 @@ def GetSchoolTimeTable(init):
 
 if __name__ == '__main__':
     GetSchoolTimeTable(init)
-
