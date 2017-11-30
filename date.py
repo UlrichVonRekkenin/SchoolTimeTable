@@ -1,78 +1,108 @@
-# -*- coding: utf-8 -*-
+import xlrd
+from xlwt import Workbook
+import datetime
 
-from os import path, mkdir
-from datetime import date
-from datetime import timedelta
-import calendar
 
-init = {
-        'year': ((2014, 9, 1), (2015, 5, 31)),
+def xldateToDatetime(book, sheet, row, col):
+    y, m, d, h, i, s = xlrd.xldate_as_tuple(sheet.cell_value(row, col), book.datemode)
+    return datetime.date(y, m, d)
 
-        'excludes': [
-                    ((2014, 11, 3), (2014, 11, 9)),
-                    ((2014, 12, 29), (2015, 1, 11)),
-                    ((2015, 2, 23), (2015, 2, 23)),
-                    ((2015, 3, 9), (2015, 3, 9)),
-                    ((2015, 3, 23), (2015, 3, 29)),
-                    ((2015, 5, 1), (2015, 5, 4)),
-                    ((2015, 5, 11), (2015, 5, 11)),
-                    ((2015, 5, 25), (2015, 5, 31))
-                    ],
 
-        'classes': {
-                    '3А': {2: 1, 4: 2, 5: 2},
-                    '3Б': {2: 3, 4: 6, 5: 4},
-                    '3В': {3: 1, 5: 3},
+def produceInit(filename="init.xls"):
+    book = xlrd.open_workbook(filename)
+    sheet = book.sheet_by_name("init")
+    init = {}
 
-                    '4А': {1: 4, 2: 5, 3: 6, 4: 5},
-                    '4Б': {1: 1, 3: 3, 4: 1, 5: 5},
+    if sheet == None:
+        return None
 
-                    '6Б': {1: 3, 3: 5, 4: 3},
-                    '6В': {1: 5, 2: 4, 5: 6},
-                    }
-        }
+    init["target"] = sheet.cell(0, 1).value
+    xldateToDatetime(book, sheet, 1, 1)
+    init["year"] = {
+        "from": xldateToDatetime(book, sheet, 1, 1),
+        "to": xldateToDatetime(book, sheet, 1, 2)
+    }
 
-def GetSchoolTimeTable(init):
-
-    out = 'out'
-
-    for class_name in init['classes'].keys():
-        d = dict()
-        lessCounter = 0
-
-        dt = date(*init['year'][0])
-        while dt != date(*init['year'][1]):
-
-            if dt.isoweekday() in init['classes'][class_name].keys():
-
-                if any(date(*x[0]) <= dt <= date(*x[1]) for x in init['excludes']):
-                    lessCounter += 1
-
-                else:
-                    d[dt.strftime('%Y.%m.%d')] = '{}-{}'.format(
-                            calendar.day_abbr[dt.isoweekday()],
-                            init['classes'][class_name][dt.isoweekday()]
-                        )
-
-            dt += timedelta(days=1)
-
-        if not path.exists(out):
-            mkdir(out)
-
-        with open(path.join(out, '{}.txt'.format(class_name)), 'w') as f:
-            import datetime
-
-            f.write(
-                'Class: {};\tTotal hours: {};\tLost hours: {}\nExcludes:\n\t{}\n\n{}'.format(
-                    class_name,
-                    len(d.keys()),
-                    lessCounter,
-                    str.join('\n\t', ('{} -> {}'.format(*x) for x in init['excludes'])),
-                    str.join('\n', (
-                        '{}\t{}'.format(v, datetime.datetime.strptime(k, '%Y.%m.%d').strftime('%d.%m.%Y')) for k, v in sorted(d.items())
-                        ))
-                )
+    init["excludes"] = []
+    for row in range(2, sheet.nrows):
+        vals = sheet.row_values(row)
+        if vals[0] == "excludes":
+            init["excludes"].append(
+                [
+                    xldateToDatetime(book, sheet, row, 1),
+                    xldateToDatetime(book, sheet, row, 2)
+                ]
             )
+        else:
+            break
 
-if __name__ == '__main__':
-    GetSchoolTimeTable(init)
+    rowStart = row + 3
+    rowEnd = rowStart + 6
+    un = []
+    answer = {}
+    for i, row in enumerate(range(rowStart, rowEnd + 1), start=1):
+        init[i] = sheet.row_values(row)[2:]
+        for cl in init[i]:
+            if (cl not in un) and (cl != ""):
+                un.append(cl)
+                answer[cl] = {'date': "", 'excludes': 0, 'includes': 0, 'half': [0, 0]}
+
+    return init, answer
+
+
+def evaluateDate(init, answer):
+    currentDay = init['year']['from']
+    half = datetime.date(2017, 12, 31)  # TODO
+
+    while currentDay <= init['year']['to']:
+
+        if (not any(ex[0] <= currentDay <= ex[1] for ex in init['excludes'])):
+            for cl in answer.keys():
+                if cl in init[currentDay.isoweekday()] and init[currentDay.isoweekday()].count(cl) > 0:
+                    answer[cl]['date'] += '{}\n'.format(currentDay.strftime('%d.%m.%Y')) * \
+                        init[currentDay.isoweekday()].count(cl)
+                    answer[cl]['includes'] += init[currentDay.isoweekday()].count(cl)
+                    answer[cl]['half'][int(currentDay >= half)
+                                       ] += init[currentDay.isoweekday()].count(cl)
+        else:
+            for cl in answer.keys():
+                if cl in init[currentDay.isoweekday()]:
+                    answer[cl]['excludes'] += init[currentDay.isoweekday()].count(cl)
+
+        currentDay += datetime.timedelta(days=1)
+
+    return answer
+
+
+def saveAnswerToXls(answer, dest="tmp.xls"):
+    book = Workbook(encoding="utf-8")
+
+    for cl in answer.keys():
+        sheet = book.add_sheet(cl, cell_overwrite_ok=True)
+
+        sheet.col(0).width = 5000
+        sheet.col(1).width = 4000
+
+        sheet.write(0, 0, "Всего часов:")
+        sheet.write(0, 1, answer[cl]['excludes'] + answer[cl]['includes'])
+
+        sheet.write(1, 0, "Учебных часов:")
+        sheet.write(1, 1, answer[cl]['includes'])
+
+        sheet.write(2, 0, "Пропущено:")
+        sheet.write(2, 1, answer[cl]['excludes'])
+
+        sheet.write(2, 0, "По полугодиям:")
+        sheet.write(2, 1, answer[cl]['half'][0])
+        sheet.write(2, 2, answer[cl]['half'][1])
+
+        for row, d in enumerate(answer[cl]['date'].split("\n"), start=4):
+            sheet.write(row, 0, row - 3)
+            sheet.write(row, 1, d)
+
+    book.save(dest)
+
+
+init, answer = produceInit()
+answer = evaluateDate(init, answer)
+saveAnswerToXls(answer, init["target"])
