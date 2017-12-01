@@ -1,6 +1,12 @@
 import xlrd
 from xlwt import Workbook
+from pathlib import Path
 import datetime
+import os
+import sys
+import platform
+
+DIR_TO_SAVE = os.path.expanduser("~\Documents\Shedule Generator")
 
 
 def xldateToDatetime(book, sheet, row, col):
@@ -52,7 +58,7 @@ def produceInit(filename="init.xls"):
 
 def evaluateDate(init, answer):
     currentDay = init['year']['from']
-    half = datetime.date(2017, 12, 31)  # TODO
+    half = datetime.date(currentDay.year, 12, 31)
 
     while currentDay <= init['year']['to']:
 
@@ -100,9 +106,21 @@ def saveAnswerToXls(answer, dest="tmp.xls"):
             sheet.write(row, 0, row - 3)
             sheet.write(row, 1, d)
 
-    book.save(dest)
+    if not Path(DIR_TO_SAVE).exists():
+        Path(DIR_TO_SAVE).mkdir()
+
+    pathToFile = os.path.join(DIR_TO_SAVE, init["target"])
+    book.save(pathToFile)
 
 
 init, answer = produceInit()
 answer = evaluateDate(init, answer)
 saveAnswerToXls(answer, init["target"])
+
+if platform.system() == "Windows":
+    os.system('start excel.exe "{file}"'.format(
+        file=os.path.join(DIR_TO_SAVE, init["target"])
+    ))
+else:
+    pass
+        
